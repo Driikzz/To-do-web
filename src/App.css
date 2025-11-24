@@ -191,3 +191,309 @@ header h1 {
 .logout-button:hover {
   opacity: 0.85;
 }
+
+.login-layout {
+  max-width: 1100px;
+  margin: 3rem auto;
+  background: #fff;
+  border-radius: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.15);
+}
+
+.login-hero {
+  background: linear-gradient(180deg, #fdf7ec, #f0f4ff);
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle at top, #ffb347, #ff6b6b);
+}
+
+.brand-label {
+  font-weight: 700;
+  margin: 0;
+}
+
+.brand-tagline {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475467;
+}
+
+.login-hero h1 {
+  margin: 0;
+  font-size: 2.75rem;
+  color: #0f172a;
+}
+
+.hero-description {
+  margin: 0;
+  color: #475467;
+  font-size: 1.05rem;
+}
+
+.hero-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.hero-card {
+  border-radius: 20px;
+  padding: 1.5rem;
+  background: #fff;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+}
+
+.hero-card ul {
+  padding-left: 1rem;
+  margin: 0.5rem 0 0;
+  color: #475467;
+}
+
+.hero-card li::marker {
+  color: #0f172a;
+}
+
+.hero-card.yellow {
+  background: #fefbe8;
+}
+
+.hero-card.blue {
+  background: #eef2ff;
+}
+
+.hero-card.pink {
+  background: #fdf2f8;
+}
+
+.login-panel {
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.login-panel header h2 {
+  margin: 0 0 0.35rem;
+  color: #0f172a;
+}
+
+.login-panel header p {
+  margin: 0;
+  color: #475467;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-form label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.login-form input {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+}
+
+.password-meta {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.form-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.row{
+  display: flex;
+  flex-direction: row !important;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+  color: #475467;
+}
+
+.remember-me input {
+  width: 16px;
+  height: 16px;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #0d9488;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.login-submit {
+  background: #16a34a;
+  border: none;
+  border-radius: 999px;
+  padding: 0.95rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+}
+
+.login-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.login-register {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #475467;
+}
+
+@media (max-width: 960px) {
+  .login-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.register-layout {
+  max-width: 1100px;
+  margin: 3rem auto;
+  background: #fff;
+  border-radius: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.15);
+}
+
+.register-hero {
+  background: linear-gradient(180deg, #fff6ec, #f1fff6);
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.register-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.register-card {
+  border-radius: 20px;
+  padding: 1.25rem;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  background: #fff;
+}
+
+.register-card.yellow {
+  background: #fef7d9;
+}
+
+.register-card.blue {
+  background: #e9f3ff;
+}
+
+.register-card.pink {
+  background: #fdeef1;
+}
+
+.register-panel {
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.register-panel header h2 {
+  margin: 0 0 0.35rem;
+}
+
+.register-panel header p {
+  margin: 0;
+  color: #475467;
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.register-names {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.register-form label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.register-form input[type='text'],
+.register-form input[type='email'],
+.register-form input[type='password'] {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+}
+
+.terms-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #475467;
+}
+
+.terms-checkbox input {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 960px) {
+  .register-layout {
+    grid-template-columns: 1fr;
+  }
+}
