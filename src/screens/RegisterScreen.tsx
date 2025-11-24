@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 
 interface RegisterScreenProps {
   onSuccess?: (payload: unknown) => void
+  onSwitchToLogin?: () => void
 }
 
 interface RegisterForm {
@@ -12,6 +13,7 @@ interface RegisterForm {
   email: string
   password: string
   confirmPassword: string
+  acceptTerms: boolean
 }
 
 const defaultValues: RegisterForm = {
@@ -20,9 +22,10 @@ const defaultValues: RegisterForm = {
   email: '',
   password: '',
   confirmPassword: '',
+  acceptTerms: false,
 }
 
-export default function RegisterScreen({ onSuccess }: RegisterScreenProps) {
+export default function RegisterScreen({ onSuccess, onSwitchToLogin }: RegisterScreenProps) {
   const [form, setForm] = useState<RegisterForm>(defaultValues)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,8 +39,8 @@ export default function RegisterScreen({ onSuccess }: RegisterScreenProps) {
   )
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target
-    setForm((previous) => ({ ...previous, [name]: value }))
+    const { name, value, type, checked } = event.target
+    setForm((previous) => ({ ...previous, [name]: type === 'checkbox' ? checked : value }))
   }
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -48,14 +51,24 @@ export default function RegisterScreen({ onSuccess }: RegisterScreenProps) {
       return
     }
 
+    if (!form.acceptTerms) {
+      setError('Vous devez accepter les CGU pour continuer')
+      return
+    }
+
+    if (!form.firstname.trim() || !form.lastname.trim()) {
+      setError('Merci de renseigner votre prénom et votre nom')
+      return
+    }
+
     setLoading(true)
     setError(null)
     setSuccess(null)
 
     try {
       await register({
-        firstname: form.firstname,
-        lastname: form.lastname,
+        firstname: form.firstname.trim(),
+        lastname: form.lastname.trim(),
         email: form.email,
         password: form.password,
       })
@@ -72,80 +85,152 @@ export default function RegisterScreen({ onSuccess }: RegisterScreenProps) {
   }
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
-      <h2>Inscription</h2>
-      <div className="grid-2">
-        <label>
-          Nom
-          <input
-            name="lastname"
-            type="text"
-            placeholder="Dupont"
-            value={form.lastname}
-            onChange={handleChange}
-            required
-          />
-        </label>
-        <label>
-          Prénom
-          <input
-            name="firstname"
-            type="text"
-            placeholder="Marie"
-            value={form.firstname}
-            onChange={handleChange}
-            required
-          />
-        </label>
-      </div>
+    <div className="register-layout">
+      <section className="register-hero">
+        <div className="hero-brand">
+          <span className="brand-dot" />
+          <div>
+            <p className="brand-label">Sticky Notes</p>
+            <p className="brand-tagline">Créez votre mur d&apos;idées.</p>
+          </div>
+        </div>
 
-      <label>
-        Email
-        <input
-          name="email"
-          type="email"
-          placeholder="marie.dupont@example.com"
-          value={form.email}
-          onChange={handleChange}
-          required
-        />
-      </label>
+        <h1>Créez votre mur d&apos;idées.</h1>
+        <p className="hero-description">
+          Commencez un espace clair pour organiser vos tâches, projets et inspirations.
+        </p>
 
-      <div className="grid-2">
-        <label>
-          Mot de passe
-          <input
-            name="password"
-            type="password"
-            placeholder="••••••••"
-            value={form.password}
-            onChange={handleChange}
-            required
-            minLength={6}
-          />
-        </label>
-        <label>
-          Confirmation
-          <input
-            name="confirmPassword"
-            type="password"
-            placeholder="••••••••"
-            value={form.confirmPassword}
-            onChange={handleChange}
-            required
-            minLength={6}
-          />
-        </label>
-      </div>
+        <div className="register-cards">
+          <article className="register-card yellow">
+            <p className="hero-card-title">Bienvenue</p>
+            <h3>Votre premier tableau</h3>
+            <p>
+              Ajoutez vos idées
+              <br />
+              Classez vos projets
+              <br />
+              Invitez votre équipe
+            </p>
+          </article>
+          <article className="register-card blue">
+            <p className="hero-card-title">Astuce</p>
+            <h3>Glisser-déposer</h3>
+            <p>Réorganisez vos notes en un geste</p>
+          </article>
+          <article className="register-card pink">
+            <p className="hero-card-title">Perso</p>
+            <h3>Objectifs du mois</h3>
+            <p>3 priorités à atteindre</p>
+          </article>
+        </div>
+      </section>
 
-      <button type="submit" disabled={loading || passwordMismatch}>
-        {loading ? 'Création...' : "S'inscrire"}
-      </button>
+      <section className="register-panel">
+        <header>
+          <h2>Créer un compte</h2>
+          <p>Rejoignez Sticky Notes et gardez toutes vos idées au même endroit.</p>
+        </header>
 
-      {passwordMismatch && <p className="auth-feedback error">Les mots de passe doivent correspondre</p>}
-      {error && <p className="auth-feedback error">{error}</p>}
-      {success && <p className="auth-feedback success">{success}</p>}
-    </form>
+        <form className="register-form" onSubmit={handleSubmit}>
+          <div className="register-names">
+            <label>
+              Prénom
+              <input
+                name="firstname"
+                type="text"
+                placeholder="Prénom"
+                value={form.firstname}
+                onChange={handleChange}
+                required
+              />
+            </label>
+            <label>
+              Nom
+              <input
+                name="lastname"
+                type="text"
+                placeholder="Nom"
+                value={form.lastname}
+                onChange={handleChange}
+                required
+              />
+            </label>
+          </div>
+
+          <label>
+            Email
+            <input
+              name="email"
+              type="email"
+              placeholder="vous@example.com"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
+          </label>
+
+          <label>
+            Mot de passe
+            <div className="password-meta">
+              <span>Minimum 8 caractères</span>
+            </div>
+            <input
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              value={form.password}
+              onChange={handleChange}
+              required
+              minLength={8}
+            />
+          </label>
+
+          <label>
+            Confirmer le mot de passe
+            <input
+              name="confirmPassword"
+              type="password"
+              placeholder="••••••••"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              required
+              minLength={8}
+            />
+          </label>
+
+          <label className="terms-checkbox row">
+            <input
+              type="checkbox"
+              name="acceptTerms"
+              checked={form.acceptTerms}
+              onChange={handleChange}
+            />
+            J&apos;accepte les CGU
+          </label>
+
+          <button
+            type="submit"
+            className="login-submit"
+            disabled={loading || passwordMismatch || !form.acceptTerms}
+          >
+            {loading ? 'Création...' : 'Créer un compte'}
+          </button>
+
+          <p className="login-register">
+            Déjà inscrit ?{' '}
+            <button type="button" className="link-button" onClick={onSwitchToLogin}>
+              Connectez-vous
+            </button>
+          </p>
+
+          {passwordMismatch && (
+            <p className="auth-feedback error">Les mots de passe doivent correspondre</p>
+          )}
+          {error && <p className="auth-feedback error">{error}</p>}
+          {success && <p className="auth-feedback success">{success}</p>}
+        </form>
+      </section>
+    </div>
   )
 }
 
