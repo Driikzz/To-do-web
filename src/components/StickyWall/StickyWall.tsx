@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Space, Task } from '../../types/space';
 import Sidebar from '../Sidebar/Sidebar';
 import StickyNote from '../StickyNote/StickyNote';
 import CreateTaskModal from '../CreateTaskModal/CreateTaskModal';
-import SpaceService from '../../services/spaceService';
+import SpaceService, { type CreateSpacePayload } from '../../services/spaceService';
 import TaskService from '../../services/taskService';
+import UserServices, { type UserPreview } from '../../services/userServices';
 import { useAuth } from '../../context/AuthContext';
+import CreateSpaceModal from '../Spaces/CreateSpaceModal';
 
 const COLORS = [
   '#A8E6CF', // mint green pastel
@@ -18,6 +20,25 @@ const COLORS = [
 
 const PERSONAL_STICKY_WALL_ID = 'personal-sticky-wall';
 
+type MemberAction = 'idle' | 'add' | 'remove';
+
+const buildPersonalStickyWall = (): Space => ({
+  id: PERSONAL_STICKY_WALL_ID,
+  name: 'Sticky Wall',
+  description: 'Mon espace personnel',
+  maxUsers: 1,
+  adminList: [],
+  usersList: [],
+  createdAt: new Date(),
+  updatedAt: new Date()
+});
+
+const reorderSpaces = (spaceList: Space[]): Space[] => {
+  const personal = spaceList.find(space => space.id === PERSONAL_STICKY_WALL_ID);
+  const others = spaceList.filter(space => space.id !== PERSONAL_STICKY_WALL_ID);
+  return personal ? [personal, ...others] : others;
+};
+
 const StickyWall = () => {
   const { token, logout } = useAuth();
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -28,6 +49,16 @@ const StickyWall = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showSpaceModal, setShowSpaceModal] = useState(false);
+  const [spaceModalLoading, setSpaceModalLoading] = useState(false);
+  const [spaceModalError, setSpaceModalError] = useState<string | null>(null);
+  const [memberUserId, setMemberUserId] = useState('');
+  const [memberAction, setMemberAction] = useState<MemberAction>('idle');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState<UserPreview[]>([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [userSearchError, setUserSearchError] = useState<string | null>(null);
+  const [selectedUserPreview, setSelectedUserPreview] = useState<UserPreview | null>(null);
 
   // Charger les spaces
   useEffect(() => {
@@ -36,28 +67,23 @@ const StickyWall = () => {
 
       try {
         setLoading(true);
-        const loadedSpaces = await SpaceService.getAllSpaces(token);
+        const loadedSpaces = await SpaceService.getAllSpaces();
+        const personalStickyWall = buildPersonalStickyWall();
 
-        // Créer un espace "Sticky Wall" virtuel (toujours en premier)
-        const personalStickyWall: Space = {
-          id: PERSONAL_STICKY_WALL_ID,
-          name: 'Sticky Wall',
-          description: 'Mon espace personnel',
-          maxUsers: 1,
-          adminList: [],
-          usersList: [],
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-
-        // Ajouter le Sticky Wall personnel en premier, suivi des autres espaces
-        const allSpaces = [personalStickyWall, ...loadedSpaces];
+        const allSpaces = reorderSpaces([personalStickyWall, ...loadedSpaces]);
         setSpaces(allSpaces);
 
-        // Sélectionner automatiquement le "Sticky Wall" personnel
-        if (!selectedSpaceId) {
-          setSelectedSpaceId(personalStickyWall.id);
-        }
+        // Si aucun espace n'est sélectionné, sélectionner le premier espace non-personnel ou le personnel
+        setSelectedSpaceId(prev => {
+          if (prev) {
+            // Vérifier que l'espace sélectionné existe toujours
+            const exists = allSpaces.some(s => s.id === prev);
+            if (exists) return prev;
+          }
+          // Sinon, sélectionner le premier espace non-personnel ou le personnel
+          const firstNonPersonal = loadedSpaces.find(s => s.id !== PERSONAL_STICKY_WALL_ID);
+          return firstNonPersonal?.id ?? personalStickyWall.id;
+        });
         setError(null);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erreur inconnue';
@@ -106,7 +132,7 @@ const StickyWall = () => {
       }
 
       try {
-        const loadedTasks = await TaskService.getAllTasksBySpace(token, selectedSpaceId);
+        const loadedTasks = await TaskService.getAllTasksBySpace(selectedSpaceId);
         setTasks(loadedTasks);
         setError(null);
       } catch (err) {
@@ -119,21 +145,32 @@ const StickyWall = () => {
     loadTasks();
   }, [token, selectedSpaceId, personalTasks]);
 
-  const handleCreateSpace = async () => {
-    if (!token) return;
+  const handleOpenSpaceModal = () => {
+    setSpaceModalError(null);
+    setShowSpaceModal(true);
+  };
 
-    const name = prompt('Nom du nouvel espace :');
-    if (!name) return;
+  const handleCloseSpaceModal = () => {
+    setShowSpaceModal(false);
+    setSpaceModalError(null);
+  };
 
+  const handleSubmitSpace = async (payload: CreateSpacePayload) => {
+    setSpaceModalLoading(true);
+    setSpaceModalError(null);
     try {
-      const newSpace = await SpaceService.createSpace(token, name);
-      setSpaces([newSpace, ...spaces]);
+      const newSpace = await SpaceService.createSpace(payload);
+      setSpaces(previous => {
+        const withoutDuplicate = previous.filter(space => space.id !== newSpace.id);
+        return reorderSpaces([...withoutDuplicate, newSpace]);
+      });
       setSelectedSpaceId(newSpace.id);
-      setError(null);
+      setShowSpaceModal(false);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur inconnue';
-      setError(message);
-      console.error('Erreur de création de l\'espace:', err);
+      const message = err instanceof Error ? err.message : 'Erreur lors de la création de l\'espace';
+      setSpaceModalError(message);
+    } finally {
+      setSpaceModalLoading(false);
     }
   };
 
@@ -159,7 +196,7 @@ const StickyWall = () => {
     }
 
     try {
-      const newTask = await TaskService.createTask(token, selectedSpaceId, {
+      const newTask = await TaskService.createTask(selectedSpaceId, {
         name,
         color,
         items: []
@@ -185,7 +222,7 @@ const StickyWall = () => {
     }
 
     try {
-      const updatedTask = await TaskService.updateTask(token, taskId, updates);
+      const updatedTask = await TaskService.updateTask(taskId, updates);
       setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
       setError(null);
     } catch (err) {
@@ -205,7 +242,7 @@ const StickyWall = () => {
     }
 
     try {
-      await TaskService.deleteTask(token, taskId);
+      await TaskService.deleteTask(taskId);
       setTasks(tasks.filter(t => t.id !== taskId));
       setError(null);
     } catch (err) {
@@ -215,7 +252,104 @@ const StickyWall = () => {
     }
   };
 
-  const selectedSpace = spaces.find(s => s.id === selectedSpaceId);
+  const handleSearchUser = async (event?: React.FormEvent) => {
+    event?.preventDefault();
+    const query = userSearchQuery.trim();
+    if (!query || userSearchLoading) {
+      return;
+    }
+
+    try {
+      setUserSearchLoading(true);
+      setUserSearchResults([]);
+      setUserSearchError(null);
+      const results = await UserServices.search(query);
+      if (!results.length) {
+        setUserSearchError('Aucun utilisateur trouvé');
+      }
+      setUserSearchResults(results);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Impossible de rechercher cet utilisateur';
+      setUserSearchError(message);
+    } finally {
+      setUserSearchLoading(false);
+    }
+  };
+
+  const handleSelectUser = (user: UserPreview) => {
+    setMemberUserId(user.id);
+    setSelectedUserPreview(user);
+    setUserSearchResults([]);
+    setUserSearchError(null);
+    setUserSearchQuery(user.email);
+  };
+
+  const handleClearSelectedUser = () => {
+    setMemberUserId('');
+    setSelectedUserPreview(null);
+    setUserSearchResults([]);
+  };
+
+  const selectedSpace = useMemo(
+    () => spaces.find(space => space.id === selectedSpaceId) ?? null,
+    [spaces, selectedSpaceId]
+  );
+
+  const handleMemberAction = async (action: Exclude<MemberAction, 'idle'>) => {
+    // Utiliser selectedSpaceId directement si selectedSpace est null (cas où l'espace n'est pas encore chargé)
+    const currentSpaceId = selectedSpace?.id ?? selectedSpaceId;
+    
+    if (!token) {
+      setError('Vous devez être connecté');
+      return;
+    }
+    
+    if (!currentSpaceId) {
+      setError('Veuillez sélectionner un espace dans la sidebar');
+      return;
+    }
+    
+    if (currentSpaceId === PERSONAL_STICKY_WALL_ID) {
+      setError('Vous ne pouvez pas ajouter d\'utilisateurs à votre espace personnel');
+      return;
+    }
+
+    const trimmedUserId = memberUserId.trim();
+    if (!trimmedUserId) {
+      setError('Veuillez sélectionner un utilisateur');
+      return;
+    }
+    
+    if (memberAction !== 'idle') {
+      return;
+    }
+
+    try {
+      setMemberAction(action);
+      setError(null);
+
+      const updatedSpace =
+        action === 'add'
+          ? await SpaceService.addUser(currentSpaceId, trimmedUserId)
+          : await SpaceService.removeUser(currentSpaceId, trimmedUserId);
+      
+      setSpaces(previous =>
+        previous.map(space => (space.id === updatedSpace.id ? updatedSpace : space))
+      );
+      setMemberUserId('');
+      setSelectedUserPreview(null);
+      setUserSearchQuery('');
+      setUserSearchResults([]);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Impossible de mettre à jour les utilisateurs';
+      setError(message);
+      console.error('Erreur lors de la mise à jour des membres:', err);
+    } finally {
+      setMemberAction('idle');
+    }
+  };
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -224,7 +358,7 @@ const StickyWall = () => {
         spaces={spaces}
         selectedSpaceId={selectedSpaceId}
         onSelectSpace={setSelectedSpaceId}
-        onCreateSpace={handleCreateSpace}
+        onCreateSpace={handleOpenSpaceModal}
         onLogout={logout}
         currentFilter={currentFilter}
         onFilterChange={setCurrentFilter}
@@ -244,10 +378,206 @@ const StickyWall = () => {
           <h1 style={{ margin: '0 0 10px 0', fontSize: '32px', fontWeight: 'bold' }}>
             {selectedSpace ? selectedSpace.name : 'Sticky Wall'}
           </h1>
-          {selectedSpace && (
-            <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
-              {selectedSpace.description || 'Espace collaboratif'}
+          {!selectedSpaceId && (
+            <p style={{ margin: '8px 0 0', color: '#f44336', fontSize: '14px' }}>
+              ⚠️ Veuillez sélectionner un espace dans la sidebar
             </p>
+          )}
+          {selectedSpaceId && (
+            <>
+              {selectedSpace && (
+                <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
+                  {selectedSpace.description || 'Espace collaboratif'}
+                </p>
+              )}
+
+              {selectedSpaceId !== PERSONAL_STICKY_WALL_ID && (
+                <div
+                  style={{
+                    marginTop: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
+                >
+                  <form
+                    onSubmit={handleSearchUser}
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Nom, prénom ou email"
+                      value={userSearchQuery}
+                      onChange={(event) => {
+                        setUserSearchQuery(event.target.value);
+                        setUserSearchError(null);
+                      }}
+                      style={{
+                        flex: 1,
+                        minWidth: '220px',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #dcdcdc',
+                        fontSize: '14px'
+                      }}
+                      autoComplete="off"
+                    />
+                    <button
+                      type="submit"
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        backgroundColor: '#1976d2',
+                        color: '#fff',
+                        fontWeight: 600,
+                        cursor: userSearchLoading ? 'not-allowed' : 'pointer'
+                      }}
+                      disabled={userSearchLoading || !userSearchQuery.trim()}
+                    >
+                      {userSearchLoading ? 'Recherche...' : 'Rechercher'}
+                    </button>
+                  </form>
+
+                  {userSearchError && (
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        backgroundColor: '#fdecea',
+                        border: '1px solid #f5c6cb',
+                        color: '#a94442'
+                      }}
+                    >
+                      {userSearchError}
+                    </div>
+                  )}
+
+                  {userSearchResults.length > 0 && (
+                    <div
+                      style={{
+                        border: '1px solid #dcdcdc',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      {userSearchResults.map((user) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onClick={() => handleSelectUser(user)}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '12px 16px',
+                            border: 'none',
+                            borderBottom: '1px solid #eee',
+                            backgroundColor: '#fff',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px'
+                          }}
+                        >
+                          <span style={{ fontWeight: 600 }}>
+                            {user.firstname} {user.lastname}
+                          </span>
+                          <span style={{ fontSize: '13px', color: '#666' }}>{user.email}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedUserPreview && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        alignItems: 'center',
+                        padding: '12px',
+                        border: '1px solid #dcdcdc',
+                        borderRadius: '8px',
+                        backgroundColor: '#f9f9f9'
+                      }}
+                    >
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 600 }}>
+                          {selectedUserPreview.firstname} {selectedUserPreview.lastname}
+                        </p>
+                        <p style={{ margin: 0, color: '#666', fontSize: '13px' }}>
+                          {selectedUserPreview.email}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearSelectedUser}
+                        style={{
+                          marginLeft: 'auto',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #dcdcdc',
+                          backgroundColor: '#fff',
+                          cursor: 'pointer',
+                          fontSize: '13px'
+                        }}
+                      >
+                        Changer
+                      </button>
+                    </div>
+                  )}
+
+                  {!selectedUserPreview && (
+                    <p style={{ margin: 0, color: '#999', fontSize: '13px', fontStyle: 'italic' }}>
+                      Recherchez et sélectionnez un utilisateur pour l&apos;ajouter ou le retirer
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleMemberAction('add')}
+                      disabled={!memberUserId.trim() || memberAction !== 'idle'}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        backgroundColor: memberUserId.trim() && memberAction === 'idle' ? '#4CAF50' : '#ccc',
+                        color: '#fff',
+                        fontWeight: 600,
+                        cursor: memberUserId.trim() && memberAction === 'idle' ? 'pointer' : 'not-allowed',
+                        opacity: memberUserId.trim() && memberAction === 'idle' ? 1 : 0.6
+                      }}
+                    >
+                      {memberAction === 'add' ? 'Ajout...' : 'Ajouter'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleMemberAction('remove')}
+                      disabled={!memberUserId.trim() || memberAction !== 'idle'}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #f44336',
+                        backgroundColor: '#fff',
+                        color: memberUserId.trim() && memberAction === 'idle' ? '#f44336' : '#ccc',
+                        fontWeight: 600,
+                        cursor: memberUserId.trim() && memberAction === 'idle' ? 'pointer' : 'not-allowed',
+                        opacity: memberUserId.trim() && memberAction === 'idle' ? 1 : 0.6
+                      }}
+                    >
+                      {memberAction === 'remove' ? 'Retrait...' : 'Retirer'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -384,6 +714,15 @@ const StickyWall = () => {
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreateTask}
           colors={COLORS}
+        />
+      )}
+
+      {showSpaceModal && (
+        <CreateSpaceModal
+          onClose={handleCloseSpaceModal}
+          onSubmit={handleSubmitSpace}
+          loading={spaceModalLoading}
+          error={spaceModalError}
         />
       )}
     </div>

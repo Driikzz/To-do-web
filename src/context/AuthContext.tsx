@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import UserServices from '../services/userServices'
 import asyncStorage from '../services/asyncStorage'
+import { onUnauthorized, setAuthToken } from '../services/apiClient'
 
 const AUTH_STORAGE_KEY = 'auth_session'
 
@@ -44,6 +45,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({ token: null, user: null })
   const [loading, setLoading] = useState(true)
 
+  const persistSession = useCallback(async (session: AuthSession | null) => {
+    if (session) {
+      setState({ token: session.token, user: session.user })
+      setAuthToken(session.token)
+      await asyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+    } else {
+      setState({ token: null, user: null })
+      setAuthToken(null)
+      await asyncStorage.removeItem(AUTH_STORAGE_KEY)
+    }
+  }, [])
+
   useEffect(() => {
     const hydrate = async () => {
       try {
@@ -51,6 +64,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (raw) {
           const parsed = JSON.parse(raw) as AuthSession
           setState({ token: parsed.token, user: parsed.user })
+          setAuthToken(parsed.token)
+        } else {
+          setAuthToken(null)
         }
       } catch (error) {
         console.error('Impossible de charger la session', error)
@@ -62,15 +78,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hydrate()
   }, [])
 
-  const persistSession = async (session: AuthSession | null) => {
-    if (session) {
-      setState({ token: session.token, user: session.user })
-      await asyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
-    } else {
-      setState({ token: null, user: null })
-      await asyncStorage.removeItem(AUTH_STORAGE_KEY)
-    }
-  }
+  useEffect(() => {
+    const unsubscribe = onUnauthorized(() => {
+      persistSession(null)
+    })
+
+    return unsubscribe
+  }, [persistSession])
 
   const login = async (email: string, password: string) => {
     const data = await UserServices.login(email, password)
