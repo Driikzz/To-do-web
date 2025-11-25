@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(\"d:\\Cedric\\ESGI\\M1\\Scrum - Agile\\To-do-web\\src\\types\\todo.ts\")",
+      "Bash(taskkill:*)",
+      "Bash(nul)",
+      "Bash(cat:*)",
+      "Bash(todo.ts)",
+      "Bash(npm run build:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
