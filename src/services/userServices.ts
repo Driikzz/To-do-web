@@ -1,24 +1,59 @@
-import axios from "axios"
+import apiClient from './apiClient'
 
-const BASE_URL = import.meta.env.BACKEND_URL || 'http://localhost:4000/api'
+const extractErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'string') {
+    return error
+  }
+
+  if (error && typeof error === 'object' && 'response' in error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response
+    if (response?.data?.message) {
+      return response.data.message
+    }
+  }
+
+  return fallback
+}
+
+export type UserPreview = {
+  id: string
+  firstname: string
+  lastname: string
+  email: string
+}
 
 const UserServices = {
-    async login(email: string, password: string) {
-        try {
-            const response = await axios.post(`${BASE_URL}/auth/login`, { email, password })
-            return response.data
-        } catch (error: any) {
-            throw new Error(error.response.data.message)
-        }
-    },
-    async register(firstname: string, lastname: string, email: string, password: string) {
-        try {
-            const response = await axios.post(`${BASE_URL}/auth/register`, { firstname, lastname, email, password })
-            return response.data
-        } catch (error: any) {
-            throw new Error(error.response.data.message)
-        }
+  async login(email: string, password: string) {
+    try {
+      const response = await apiClient.post('/auth/login', { email, password })
+      return response.data
+    } catch (error) {
+      throw new Error(extractErrorMessage(error, 'Impossible de se connecter'))
     }
+  },
+  async register(firstname: string, lastname: string, email: string, password: string) {
+    try {
+      const response = await apiClient.post('/auth/register', {
+        firstname,
+        lastname,
+        email,
+        password,
+      })
+      return response.data
+    } catch (error) {
+      throw new Error(extractErrorMessage(error, 'Impossible de créer le compte'))
+    }
+  },
+  async search(query: string): Promise<UserPreview[]> {
+    try {
+      const response = await apiClient.get<UserPreview[]>('/users/search', {
+        params: { q: query },
+      })
+      return response.data
+    } catch (error) {
+      throw new Error(extractErrorMessage(error, 'Impossible de rechercher des utilisateurs'))
+    }
+  },
 }
 
 export default UserServices
